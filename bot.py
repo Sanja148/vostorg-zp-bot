@@ -28,8 +28,7 @@ for month in months:
 
 # Клавиатура для старта заново
 start_kb = ReplyKeyboardMarkup(resize_keyboard=True)
-start_kb.add(KeyboardButton("/start"))
-
+start_kb.add(KeyboardButton("Заново"))
 
 user_data = {}
 
@@ -45,7 +44,7 @@ async def year_handler(message: Message):
 @dp.message_handler(lambda message: message.text in months)
 async def month_handler(message: Message):
     user_data[message.from_user.id]["month"] = message.text
-    await message.answer("Введите вашу ставку (например: 20000):")
+    await message.answer("Введите вашу ставку (например: 11000):")
 
 @dp.message_handler(lambda message: message.text.isdigit())
 async def handle_input(message: Message):
