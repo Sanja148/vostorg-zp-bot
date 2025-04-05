@@ -44,32 +44,59 @@ async def year_handler(message: Message):
 @dp.message_handler(lambda message: message.text in months)
 async def month_handler(message: Message):
     user_data[message.from_user.id]["month"] = message.text
-    await message.answer("Введите вашу ставку (например: 11000):")
+    # Убираем клавиатуру после выбора месяца
+    await message.answer("Введите вашу ставку (например: 11000):", reply_markup=types.ReplyKeyboardRemove())
 
 @dp.message_handler(lambda message: message.text.isdigit())
-async def handle_input(message: Message):
+async def handle_rate_input(message: Message):
     user_id = message.from_user.id
     data = user_data.get(user_id, {})
 
     if "rate" not in data:
-        data["rate"] = int(message.text)
-        user_data[user_id] = data
-        await message.answer("Введите количество отработанных часов (например: 140):")
+        try:
+            rate = int(message.text)
+            data["rate"] = rate
+            user_data[user_id] = data
+            await message.answer("Введите количество отработанных часов (например: 140):")
+        except ValueError:
+            await message.answer("Пожалуйста, введите корректную числовую ставку.")
     else:
-        worked_hours = int(message.text)
-        year = data["year"]
-        month_name = data["month"]
-        rate = data["rate"]
+        await handle_worked_hours_input(message)
 
-        month_number = months.index(month_name) + 1
-        weekdays = count_weekdays(year, month_number)
-        hourly_rate = (rate / weekdays) / 8
-        total_salary = hourly_rate * worked_hours
+@dp.message_handler(lambda message: message.text.isdigit())
+async def handle_worked_hours_input(message: Message):
+    user_id = message.from_user.id
+    data = user_data.get(user_id, {})
 
-        result = f"Ставка в час = {hourly_rate:.2f}\nЗП за отработанное время = {total_salary:.2f} грн"
+    if "worked_hours" not in data:
+        try:
+            worked_hours = int(message.text)
+            if worked_hours < 0:
+                raise ValueError("Количество часов не может быть отрицательным.")
+            data["worked_hours"] = worked_hours
+            user_data[user_id] = data
 
-        await message.answer(result, reply_markup=start_kb)
+            # Выполнение расчета
+            year = data["year"]
+            month_name = data["month"]
+            rate = data["rate"]
+            worked_hours = data["worked_hours"]
 
+            month_number = months.index(month_name) + 1
+            weekdays = count_weekdays(year, month_number)
+            hourly_rate = (rate / weekdays) / 8
+            total_salary = hourly_rate * worked_hours
+
+            result = f"Ставка в час = {hourly_rate:.2f}\nЗП за отработанное время = {total_salary:.2f} грн"
+
+            await message.answer(result, reply_markup=start_kb)
+
+            # Очистка данных пользователя после расчета
+            del user_data[user_id]
+
+        except ValueError:
+            await message.answer("Пожалуйста, введите корректное число для количества отработанных часов.")
+        
 def count_weekdays(year, month):
     days_in_month = calendar.monthrange(year, month)[1]
     weekdays = 0
@@ -81,3 +108,4 @@ def count_weekdays(year, month):
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
+
